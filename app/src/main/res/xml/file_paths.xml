@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Cache directory paths for temp image captures -->
+    <cache-path name="captured_temp" path="." />
+    <!-- Private internal files directory for secure documents storage -->
+    <files-path name="secure_documents" path="documents/" />
+</paths>
