@@ -1,0 +1,36 @@
+# Built artifacts
+build/
+app/build/
+.gradle/
+Captures/
+
+# Android Studio / IntelliJ IDEA files
+.idea/
+*.iml
+local.properties
+.navigation/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aar
+
+# Keystores & sensitive credentials
+*.jks
+*.keystore
+*.pkcs12
+*.p12
+*.pem
+*.der
+keystore.properties
+
+# Local / temporary / scratch files
+scratch/
+.agent/
+*.log
+.DS_Store
+Thumbs.db
+
+# Backup and exported data files (excluding Android resources)
+*backup.json
+quick_beep_backup.json
+/.vs
