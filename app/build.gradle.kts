@@ -8,6 +8,16 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// Version is driven by git tags (vX.Y.Z) via -PappVersionName=X.Y.Z.
+// versionCode = major * 10000 + minor * 100 + patch (1.0.0 -> 10000).
+val appVersionName: String = (project.findProperty("appVersionName") as String?) ?: "1.0.0"
+val appVersionCode: Int = run {
+    val m = Regex("""^(\d+)\.(\d+)\.(\d+)""").find(appVersionName)
+        ?: throw GradleException("appVersionName must look like MAJOR.MINOR.PATCH, got '$appVersionName'")
+    val (major, minor, patch) = m.destructured
+    major.toInt() * 10000 + minor.toInt() * 100 + patch.toInt()
+}
+
 android {
     namespace = "com.atomik.quickbeep"
     compileSdk = 34
@@ -22,8 +32,8 @@ android {
         applicationId = "com.atomik.quickbeep"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -117,4 +127,7 @@ dependencies {
 
     // JSON Serialization
     implementation(libs.kotlinx.serialization.json)
+
+    // Unit tests
+    testImplementation(libs.junit)
 }

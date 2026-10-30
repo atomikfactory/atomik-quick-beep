@@ -1,5 +1,7 @@
 # Atomik Quick Beep 💳🔒
 
+[![CI](https://github.com/atomikfactory/atomik-quick-beep/actions/workflows/ci.yml/badge.svg)](https://github.com/atomikfactory/atomik-quick-beep/actions/workflows/ci.yml)
+
 A premium, privacy-first, on-device digital vault for loyalty cards, barcodes, QR codes, and scanned documents (ID cards, driver's licenses, and PDFs). Built natively for Android using Jetpack Compose, Room, CameraX, and hardware-backed keystore encryption.
 
 ---
@@ -61,7 +63,7 @@ Atomik Quick Beep is designed under a **Zero-Trust** philosophy. It requires no 
 ### Developer Build Setup
 1. Clone the repository:
    ```bash
-   git clone <your-repository-url>
+   git clone https://github.com/atomikfactory/atomik-quick-beep.git
    cd atomik-quick-beep
    ```
 2. Build the debug APK:
@@ -92,6 +94,33 @@ To generate a signed release APK without hardcoding passwords in Git:
    ./gradlew assembleRelease
    ```
    *Note: `keystore.properties` and `*.jks` files are ignored by `.gitignore` and will never be committed to your public repository.*
+
+---
+
+## 📦 Releases
+
+### Download and install
+1. Open the [Releases page](https://github.com/atomikfactory/atomik-quick-beep/releases) and download `atomik-quick-beep-<version>-debug.apk`.
+2. Optionally verify it against `SHA256SUMS.txt` from the same release:
+   ```bash
+   sha256sum -c SHA256SUMS.txt --ignore-missing
+   ```
+3. Sideload the APK on a device running Android 8.0 (API 26) or newer.
+
+*Note: release APKs are currently **debug-signed**, and the `.aab` is **unsigned** (reserved for a future Play Store release). Once a real release key is introduced, the signing key will change and you will need to uninstall the app before installing the new build, so back up your vault first.*
+
+### Cutting a release (maintainers)
+Versions are driven by git tags. Pushing a `vX.Y.Z` tag builds the app and publishes a GitHub Release:
+```bash
+git tag v1.2.3 && git push origin v1.2.3
+```
+The version name comes from the tag, and the version code is `major*10000 + minor*100 + patch`. You can reproduce a release build locally with `./gradlew assembleDebug bundleRelease -PappVersionName=1.2.3`.
+
+To also publish a signed APK and AAB, add these repository secrets (the signed step is skipped if any is missing):
+* `RELEASE_KEYSTORE_BASE64`: your keystore, base64-encoded
+* `RELEASE_KEYSTORE_PASSWORD`
+* `RELEASE_KEY_ALIAS`
+* `RELEASE_KEY_PASSWORD`
 
 ---
 
