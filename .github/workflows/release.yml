@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HAS_SIGNING: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' && secrets.RELEASE_KEYSTORE_PASSWORD != '' && secrets.RELEASE_KEY_ALIAS != '' && secrets.RELEASE_KEY_PASSWORD != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract and validate version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Tag '$TAG' is not a valid vMAJOR.MINOR.PATCH version"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build debug-signed APK and unsigned release AAB
+        run: ./gradlew assembleDebug bundleRelease -PappVersionName=${{ steps.version.outputs.version }} --stacktrace
+
+      - name: Stage release assets
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/atomik-quick-beep-${V}-debug.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/atomik-quick-beep-${V}-unsigned.aab"
+
+      - name: Build signed release (optional)
+        if: env.HAS_SIGNING == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+          ./gradlew assembleRelease bundleRelease -PappVersionName="$V" --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk "dist/atomik-quick-beep-${V}.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "dist/atomik-quick-beep-${V}.aab"
+          rm -f keystore.properties "$RUNNER_TEMP/release.jks"
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt
+
+      - name: Write release notes
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          {
+            echo "## Install"
+            echo
+            echo "- \`atomik-quick-beep-${V}-debug.apk\` is **debug-signed**: sideload it on Android 8.0+ (API 26). Future releases signed with a proper release key use a different signing key, so you will have to uninstall this version before installing them (back up your vault first)."
+            echo "- \`atomik-quick-beep-${V}-unsigned.aab\` is an **unsigned** Android App Bundle, intended for future Play Store use. It is not directly installable."
+            if [ "$HAS_SIGNING" = "true" ]; then
+              echo "- \`atomik-quick-beep-${V}.apk\` and \`atomik-quick-beep-${V}.aab\` are signed with the release key."
+            fi
+            echo "- Verify downloads with \`sha256sum -c SHA256SUMS.txt\`."
+          } > release-notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: release-notes.md
+          generate_release_notes: true
+          files: |
+            dist/*
